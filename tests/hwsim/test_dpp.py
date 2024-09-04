@@ -2314,6 +2314,26 @@ def test_dpp_auto_connect_legacy_sae_2(dev, apdev):
     finally:
         dev[0].set("dpp_config_processing", "0", allow_fail=True)
 
+<<<<<<< HEAD
+=======
+def test_dpp_auto_connect_legacy_sae_3(dev, apdev):
+    """DPP and auto connect (legacy SAE with short password)"""
+    try:
+        run_dpp_auto_connect_legacy(dev, apdev, conf='sta-sae', sae_only=True,
+                                    password="1234567")
+    finally:
+        dev[0].set("dpp_config_processing", "0", allow_fail=True)
+
+def test_dpp_auto_connect_legacy_sae_pw_id(dev, apdev):
+    """DPP and auto connect (legacy SAE with password identifier)"""
+    check_dpp_capab(dev[0], min_ver=3)
+    try:
+        run_dpp_auto_connect_legacy(dev, apdev, conf='sta-sae', sae_only=True,
+                                    password_id="id")
+    finally:
+        dev[0].set("dpp_config_processing", "0", allow_fail=True)
+
+>>>>>>> bde17063d5e8dea453fb29c53049a09922f6d876
 def test_dpp_auto_connect_legacy_psk_sae_1(dev, apdev):
     """DPP and auto connect (legacy PSK+SAE)"""
     try:
@@ -2339,6 +2359,7 @@ def test_dpp_auto_connect_legacy_psk_sae_3(dev, apdev):
 
 def run_dpp_auto_connect_legacy(dev, apdev, conf='sta-psk',
                                 ssid_charset=None,
+<<<<<<< HEAD
                                 psk_sae=False, sae_only=False):
     check_dpp_capab(dev[0])
     check_dpp_capab(dev[1])
@@ -2349,6 +2370,24 @@ def run_dpp_auto_connect_legacy(dev, apdev, conf='sta-psk',
             params['wpa_key_mgmt'] = 'SAE'
             params['ieee80211w'] = '2'
     elif psk_sae:
+=======
+                                psk_sae=False, sae_only=False,
+                                password="secret passphrase",
+                                password_id=None):
+    check_dpp_capab(dev[0])
+    check_dpp_capab(dev[1])
+
+    if sae_only and password_id:
+        params = hostapd.wpa3_params(ssid="dpp-legacy",
+                                     password=password + '|id=' + password_id)
+    elif sae_only:
+        params = hostapd.wpa3_params(ssid="dpp-legacy",
+                                     password=password)
+    else:
+        params = hostapd.wpa2_params(ssid="dpp-legacy",
+                                     passphrase=password)
+    if psk_sae:
+>>>>>>> bde17063d5e8dea453fb29c53049a09922f6d876
             params['wpa_key_mgmt'] = 'WPA-PSK SAE'
             params['ieee80211w'] = '1'
             params['sae_require_mfp'] = '1'
@@ -2363,7 +2402,11 @@ def run_dpp_auto_connect_legacy(dev, apdev, conf='sta-psk',
     dev[0].dpp_listen(2412)
     dev[1].dpp_auth_init(uri=uri0, conf=conf, ssid="dpp-legacy",
                          ssid_charset=ssid_charset,
+<<<<<<< HEAD
                          passphrase="secret passphrase")
+=======
+                         passphrase=password, password_id=password_id)
+>>>>>>> bde17063d5e8dea453fb29c53049a09922f6d876
     wait_auth_success(dev[0], dev[1], configurator=dev[1], enrollee=dev[0])
     if ssid_charset:
         ev = dev[0].wait_event(["DPP-CONFOBJ-SSID-CHARSET"], timeout=1)

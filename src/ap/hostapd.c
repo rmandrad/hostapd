@@ -1824,11 +1824,35 @@ int hostapd_set_acl(struct hostapd_data *hapd)
 }
 
 
+static int hostapd_set_ctrl_sock_iface(struct hostapd_data *hapd)
+{
+#ifdef CONFIG_IEEE80211BE
+	int ret;
+
+	if (hapd->conf->mld_ap) {
+		ret = os_snprintf(hapd->ctrl_sock_iface,
+				  sizeof(hapd->ctrl_sock_iface), "%s_%s%d",
+				  hapd->conf->iface, WPA_CTRL_IFACE_LINK_NAME,
+				  hapd->mld_link_id);
+		if (os_snprintf_error(sizeof(hapd->ctrl_sock_iface), ret))
+			return -1;
+	} else {
+		os_strlcpy(hapd->ctrl_sock_iface, hapd->conf->iface,
+			   sizeof(hapd->ctrl_sock_iface));
+	}
+#endif /* CONFIG_IEEE80211BE */
+	return 0;
+}
+
+
 static int start_ctrl_iface_bss(struct hostapd_data *hapd)
 {
 	if (!hapd->iface->interfaces ||
 	    !hapd->iface->interfaces->ctrl_iface_init)
 		return 0;
+
+	if (hostapd_set_ctrl_sock_iface(hapd))
+		return -1;
 
 	if (hapd->iface->interfaces->ctrl_iface_init(hapd)) {
 		wpa_printf(MSG_ERROR,
@@ -1850,6 +1874,10 @@ static int start_ctrl_iface(struct hostapd_iface *iface)
 
 	for (i = 0; i < iface->num_bss; i++) {
 		struct hostapd_data *hapd = iface->bss[i];
+
+		if (hostapd_set_ctrl_sock_iface(hapd))
+			return -1;
+
 		if (iface->interfaces->ctrl_iface_init(hapd)) {
 			wpa_printf(MSG_ERROR,
 				   "Failed to setup control interface for %s",
@@ -3087,8 +3115,16 @@ static void hostapd_bss_setup_multi_link(struct hostapd_data *hapd,
 
 	os_strlcpy(mld->name, conf->iface, sizeof(conf->iface));
 	dl_list_init(&mld->links);
+	mld->ctrl_sock = -1;
+	if (hapd->conf->ctrl_interface)
+		mld->ctrl_interface = os_strdup(hapd->conf->ctrl_interface);
 
 	wpa_printf(MSG_DEBUG, "AP MLD %s created", mld->name);
+
+	/* Initialize MLD control interfaces early to allow external monitoring
+	 * of link setup operations. */
+	if (interfaces->mld_ctrl_iface_init(mld))
+		goto fail;
 
 	hapd->mld = mld;
 	hostapd_mld_ref_inc(mld);
@@ -3148,6 +3184,8 @@ static void hostapd_cleanup_unused_mlds(struct hapd_interfaces *interfaces)
 
 		if (!remove && !forced_remove)
 			continue;
+
+		interfaces->mld_ctrl_iface_deinit(mld);
 
 		wpa_printf(MSG_DEBUG, "AP MLD %s: Freed%s", mld->name,
 			   forced_remove ? " (forced)" : "");
